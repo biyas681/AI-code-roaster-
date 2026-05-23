@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Code Roaster</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen p-6">
+
+    <div class="max-w-3xl mx-auto space-y-6">
+        <header class="border-b border-gray-800 pb-4">
+            <h1 class="text-3xl font-bold tracking-tight text-red-500">AI Code Roaster</h1>
+            <p class="text-gray-400 text-sm mt-1">Submit your code to get completely destroyed by AI.</p>
+        </header>
+
+        <div class="space-y-4 bg-gray-800 p-4 rounded-lg border border-gray-700">
+            <div>
+                <label class="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">Gemini API Key</label>
+                <input type="password" id="apiKey" placeholder="AIzaSy..." class="w-full bg-gray-900 border border-gray-700 rounded p-2.5 text-sm focus:outline-none focus:border-red-500 font-mono text-gray-200">
+                <p class="text-xs text-gray-500 mt-1">Get a free key from Google AI Studio.</p>
+            </div>
+            
+            <div>
+                <label class="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">Select Roast Level</label>
+                <select id="roastLevel" class="w-full bg-gray-900 border border-gray-700 rounded p-2.5 text-sm focus:outline-none focus:border-red-500">
+                    <option value="constructive">Constructive Sarcasm (Passive Aggressive)</option>
+                    <option value="brutal" selected>Brutal (No Mercy)</option>
+                    <option value="existential">Existential Crisis (Question life)</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="space-y-2">
+            <label class="block text-xs font-semibold uppercase tracking-wider text-gray-400">Paste Garbage Code Here</label>
+            <textarea id="codeInput" rows="10" placeholder="// Paste your code here..." class="w-full bg-gray-950 border border-gray-700 rounded p-3 font-mono text-sm focus:outline-none focus:border-red-500 block"></textarea>
+        </div>
+
+        <button id="roastBtn" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded transition-colors disabled:opacity-50">
+            Roast My Code
+        </button>
+
+        <div id="outputContainer" class="hidden space-y-2">
+            <label class="block text-xs font-semibold uppercase tracking-wider text-gray-400">The Verdict</label>
+            <div id="roastOutput" class="w-full bg-gray-950 border border-gray-800 rounded p-4 font-mono text-sm whitespace-pre-wrap text-red-400 leading-relaxed"></div>
+        </div>
+    </div>
+
+    <script>
+        const roastBtn = document.getElementById('roastBtn');
+        const apiKeyInput = document.getElementById('apiKey');
+        const roastLevelSelect = document.getElementById('roastLevel');
+        const codeInput = document.getElementById('codeInput');
+        const outputContainer = document.getElementById('outputContainer');
+        const roastOutput = document.getElementById('roastOutput');
+
+        if (localStorage.getItem('gemini_api_key')) {
+            apiKeyInput.value = localStorage.getItem('gemini_api_key');
+        }
+
+        roastBtn.addEventListener('click', async () => {
+            const apiKey = apiKeyInput.value.trim();
+            const code = codeInput.value.trim();
+            const roastLevel = roastLevelSelect.value;
+
+            if (!apiKey) return alert('Provide a Gemini API Key first.');
+            if (!code) return alert('Provide some code to roast.');
+
+            localStorage.setItem('gemini_api_key', apiKey);
+
+            // Update UI State
+            roastBtn.disabled = true;
+            roastBtn.textContent = 'Analyzing failure...';
+            outputContainer.classList.remove('hidden');
+            roastOutput.textContent = 'Generating roast...';
+            roastOutput.className = 'w-full bg-gray-950 border border-gray-800 rounded p-4 font-mono text-sm whitespace-pre-wrap text-red-400 leading-relaxed';
+
+            // Construct the prompt matching system instructions
+            let systemInstruction = "You are a ruthless, highly experienced senior software engineer who hates bad code. Roast the provided code. Be technically accurate but incredibly sarcastic, witty, and sharp. Point out bad naming conventions, terrible logic flow, optimization problems, and anti-patterns.";
+            if (roastLevel === 'constructive') systemInstruction += " Keep it slightly useful but highly passive-aggressive.";
+            if (roastLevel === 'existential') systemInstruction += " Focus on making the developer rethink their choices in life.";
+
+            const fullPrompt = `${systemInstruction}\n\nHere is the code to roast:\n\`\`\`\n${code}\n\`\`\``;
+
+            // Target the endpoint over pure REST
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/center' },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [{ text: fullPrompt }]
+                        }]
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error?.message || `HTTP error! Status: ${response.status}`);
+                }
+
+                // Extract text safely from the nested JSON response structure
+                const responseText = data.candidates[0].content.parts[0].text;
+                roastOutput.textContent = responseText;
+
+            } catch (error) {
+                roastOutput.className = 'w-full bg-gray-950 border border-gray-800 rounded p-4 font-mono text-sm whitespace-pre-wrap text-yellow-500 leading-relaxed';
+                roastOutput.textContent = `Error: ${error.message}`;
+                console.error(error);
+            } finally {
+                roastBtn.disabled = false;
+                roastBtn.textContent = 'Roast My Code';
+            }
+        });
+    </script>
+</body>
+</html>
